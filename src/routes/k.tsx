@@ -136,6 +136,8 @@ function Catalog() {
   async function doSave() {
     setMsg(null);
     const id = Number(serviceId);
+    if (!Number.isFinite(id) || id <= 0) return setMsg("اكتب رقم خدمة صحيح");
+    if (!title.trim()) return setMsg("اكتب اسم الخدمة");
     const res = await save({
       data: {
         providerServiceId: id,
