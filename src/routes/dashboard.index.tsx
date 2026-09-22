@@ -7,7 +7,7 @@ import { getMe, listServices } from "@/lib/smm.functions";
 import { getUsdEgpRate } from "@/lib/fx.functions";
 import { getGuestToken } from "@/lib/guest-session";
 import { PLATFORMS, detectPlatform, type PlatformKey } from "@/lib/platform-icons";
-import { categoryOf, curate, displayProviderCategory, displayServiceName, type CategoryKey } from "@/lib/service-taxonomy";
+import { categoryOf, curate, type CategoryKey } from "@/lib/service-taxonomy";
 
 export const Route = createFileRoute("/dashboard/")({
   component: HomePage,
@@ -95,7 +95,7 @@ function HomePage() {
         return {
           raw,
           kind,
-          label: displayProviderCategory(raw),
+          label: raw,
           cheapestRate: prices.length ? Math.min(...prices) : Number.POSITIVE_INFINITY,
         };
       })
@@ -115,7 +115,7 @@ function HomePage() {
 
   const currentPlatform = platform ? PLATFORMS.find((p) => p.key === platform)! : null;
   const currentCategory = category
-    ? { raw: category, label: displayProviderCategory(category), kind: categoryOf(category) }
+    ? { raw: category, label: category, kind: categoryOf(category) }
     : null;
 
   return (
@@ -241,7 +241,7 @@ function HomePage() {
               <div className="space-y-2.5">
                 {curated.map((s) => {
                   const egp = s.rateNum * fxRate;
-                  const serviceTitle = displayServiceName(s.name, s.category);
+                  const serviceTitle = s.name;
                   return (
                     <button
                       key={s.service}

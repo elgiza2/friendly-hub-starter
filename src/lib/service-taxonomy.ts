@@ -282,6 +282,14 @@ export function curate(
     picked.push(...list.slice(0, perBucket));
   }
 
+  // Drop duplicate display names, keeping the cheapest of each.
+  const seen = new Map<string, CuratedService>();
+  for (const s of picked.sort((a, b) => a.rateNum - b.rateNum)) {
+    if (!seen.has(s.name)) seen.set(s.name, s);
+  }
+  picked.length = 0;
+  picked.push(...seen.values());
+
   // Sort: bucket rank desc, then price asc
   picked.sort((a, b) => {
     const rb = bucketRank(b.attrs) - bucketRank(a.attrs);
