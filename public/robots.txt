@@ -1,6 +1,11 @@
 User-agent: *
 Allow: /
+Allow: /dashboard
+Allow: /dashboard/order/
 Disallow: /k
-Disallow: /dashboard
+Disallow: /dashboard/wallet
+Disallow: /dashboard/orders
+Disallow: /dashboard/account
+Disallow: /api/
 
 Sitemap: https://megsy.online/sitemap.xml
