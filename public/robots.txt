@@ -1,2 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /k
+Disallow: /dashboard
+
+Sitemap: https://megsy.online/sitemap.xml
