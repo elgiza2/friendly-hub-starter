@@ -1,0 +1,295 @@
+// TanStack server functions for the SMM followers app.
+// The Supabase admin client is only loaded inside handler bodies.
+
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+async function admin() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
+/** Create or fetch a guest user by its token. Called on first visit / after login page. */
+export const ensureGuestUser = createServerFn({ method: "POST" })
+  .inputValidator((raw) =>
+    z
+      .object({
+        token: z.string().min(16).max(64),
+        name: z.string().max(60).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: existing } = await db
+      .from("sms_users")
+      .select("id, name, balance, is_guest, phone")
+      .eq("guest_token", data.token)
+      .maybeSingle();
+
+    if (existing) return existing;
+
+    const { data: created, error } = await db
+      .from("sms_users")
+      .insert({
+        guest_token: data.token,
+        is_guest: true,
+        name: data.name ?? "ضيف",
+      })
+      .select("id, name, balance, is_guest, phone")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return created;
+  });
+
+/** Fetch a guest user by its token — read only. */
+export const getMe = createServerFn({ method: "POST" })
+  .inputValidator((raw) => z.object({ token: z.string().min(16).max(64) }).parse(raw))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: user } = await db
+      .from("sms_users")
+      .select("id, name, balance, is_guest, phone")
+      .eq("guest_token", data.token)
+      .maybeSingle();
+    if (user) return user;
+    // Self-heal: recreate a missing row for a token the browser still holds.
+    const { data: created } = await db
+      .from("sms_users")
+      .insert({ guest_token: data.token, is_guest: true, name: "ضيف" })
+      .select("id, name, balance, is_guest, phone")
+      .single();
+    return created ?? null;
+  });
+
+/** Import the whole provider catalogue into public.sms_services. */
+export const syncServices = createServerFn({ method: "POST" }).handler(async () => {
+  const { fetchServices } = await import("./smm.server");
+  const db = await admin();
+  try {
+    const services = await fetchServices();
+    const rows = services.map((s) => ({
+      service_id: Number(s.service),
+      name: s.name,
+      category: s.category ?? "",
+      type: s.type ?? "",
+      rate: Number(s.rate) || 0,
+      min_quantity: Number(s.min) || 1,
+      max_quantity: Number(s.max) || 1000,
+      refill: Boolean(s.refill),
+      cancel: Boolean(s.cancel),
+      is_active: true,
+      synced_at: new Date().toISOString(),
+    }));
+
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await db
+        .from("sms_services")
+        .upsert(rows.slice(i, i + 500), { onConflict: "service_id" });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true as const, count: rows.length };
+  } catch (err) {
+    return { ok: false as const, error: (err as Error).message, count: 0 };
+  }
+});
+
+/** Services for the UI: served from our own catalogue, auto-imported when empty. */
+export const listServices = createServerFn({ method: "GET" }).handler(async () => {
+  const db = await admin();
+  try {
+    const read = async () =>
+      db
+        .from("sms_services")
+        .select("service_id, name, type, category, rate, min_quantity, max_quantity")
+        .eq("is_active", true)
+        .order("category", { ascending: true })
+        .limit(5000);
+
+    let { data } = await read();
+
+    if (!data || data.length === 0) {
+      const { fetchServices } = await import("./smm.server");
+      const services = await fetchServices();
+      const rows = services.map((s) => ({
+        service_id: Number(s.service),
+        name: s.name,
+        category: s.category ?? "",
+        type: s.type ?? "",
+        rate: Number(s.rate) || 0,
+        min_quantity: Number(s.min) || 1,
+        max_quantity: Number(s.max) || 1000,
+        refill: Boolean(s.refill),
+        cancel: Boolean(s.cancel),
+        is_active: true,
+        synced_at: new Date().toISOString(),
+      }));
+      for (let i = 0; i < rows.length; i += 500) {
+        await db.from("sms_services").upsert(rows.slice(i, i + 500), { onConflict: "service_id" });
+      }
+      data = (await read()).data;
+    }
+
+    return {
+      ok: true as const,
+      services: (data ?? []).map((s) => ({
+        service: s.service_id,
+        name: s.name,
+        type: s.type,
+        category: s.category,
+        rate: String(s.rate),
+        min: String(s.min_quantity),
+        max: String(s.max_quantity),
+      })),
+    };
+  } catch (err) {
+    return { ok: false as const, error: (err as Error).message, services: [] };
+  }
+});
+
+/** Place an order against the provider. Deducts balance atomically. */
+export const placeOrder = createServerFn({ method: "POST" })
+  .inputValidator((raw) =>
+    z
+      .object({
+        token: z.string().min(16).max(64),
+        serviceId: z.number().int().positive(),
+        serviceName: z.string().min(1).max(240),
+        category: z.string().max(120).optional(),
+        link: z.string().url().max(500),
+        quantity: z.number().int().positive().max(10_000_000),
+        charge: z.number().nonnegative(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: user, error: uErr } = await db
+      .from("sms_users")
+      .select("id, balance")
+      .eq("guest_token", data.token)
+      .maybeSingle();
+    if (uErr || !user) return { ok: false as const, error: "المستخدم مش موجود" };
+
+    if (Number(user.balance) < data.charge) {
+      return { ok: false as const, error: "رصيدك مش كافي. اشحن محفظتك الأول." };
+    }
+
+    // Deduct balance first (optimistic — reverse on provider failure).
+    const newBalance = Number(user.balance) - data.charge;
+    const { error: balErr } = await db
+      .from("sms_users")
+      .update({ balance: newBalance })
+      .eq("id", user.id);
+    if (balErr) return { ok: false as const, error: balErr.message };
+
+    const { addOrder } = await import("./smm.server");
+    const result = await addOrder(data.serviceId, data.link, data.quantity);
+
+    if (result.error || !result.order) {
+      // Refund
+      await db.from("sms_users").update({ balance: user.balance }).eq("id", user.id);
+      return { ok: false as const, error: result.error || "معرفناش نبعت الطلب للمزوّد" };
+    }
+
+    const { data: order, error: oErr } = await db
+      .from("sms_orders")
+      .insert({
+        user_id: user.id,
+        service_id: data.serviceId,
+        service_name: data.serviceName,
+        category: data.category ?? null,
+        link: data.link,
+        quantity: data.quantity,
+        charge: data.charge,
+        provider_order_id: String(result.order),
+        status: "pending",
+      })
+      .select("id, service_name, quantity, charge, status, created_at, provider_order_id")
+      .single();
+
+    await db.from("sms_transactions").insert({
+      user_id: user.id,
+      amount: -data.charge,
+      type: "order",
+      reference: order?.id ?? null,
+      status: "completed",
+    });
+
+    if (oErr) return { ok: false as const, error: oErr.message };
+    return { ok: true as const, order, newBalance };
+  });
+
+/** List orders for a guest user. */
+export const listMyOrders = createServerFn({ method: "POST" })
+  .inputValidator((raw) => z.object({ token: z.string().min(16).max(64) }).parse(raw))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: user } = await db
+      .from("sms_users")
+      .select("id")
+      .eq("guest_token", data.token)
+      .maybeSingle();
+    if (!user) return [];
+    const { data: orders } = await db
+      .from("sms_orders")
+      .select("id, service_name, category, link, quantity, charge, status, provider_order_id, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    return orders ?? [];
+  });
+
+/** Refresh a single order status from the provider. */
+export const refreshOrder = createServerFn({ method: "POST" })
+  .inputValidator((raw) =>
+    z.object({ token: z.string().min(16).max(64), orderId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: user } = await db
+      .from("sms_users").select("id").eq("guest_token", data.token).maybeSingle();
+    if (!user) return { ok: false as const, error: "unauthorized" };
+
+    const { data: order } = await db
+      .from("sms_orders")
+      .select("id, provider_order_id")
+      .eq("id", data.orderId).eq("user_id", user.id).maybeSingle();
+    if (!order?.provider_order_id) return { ok: false as const, error: "مفيش طلب" };
+
+    const { getOrderStatus } = await import("./smm.server");
+    const s = await getOrderStatus(order.provider_order_id);
+    if (s.error) return { ok: false as const, error: s.error };
+
+    await db
+      .from("sms_orders")
+      .update({
+        status: (s.status ?? "pending").toLowerCase(),
+        start_count: s.start_count ? Number(s.start_count) : null,
+        remains: s.remains ? Number(s.remains) : null,
+      })
+      .eq("id", order.id);
+
+    return { ok: true as const, status: s.status };
+  });
+
+/** List wallet transactions (deposits + orders) for a guest user. */
+export const listMyTransactions = createServerFn({ method: "POST" })
+  .inputValidator((raw) => z.object({ token: z.string().min(16).max(64) }).parse(raw))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: user } = await db
+      .from("sms_users")
+      .select("id")
+      .eq("guest_token", data.token)
+      .maybeSingle();
+    if (!user) return [];
+    const { data: rows } = await db
+      .from("sms_transactions")
+      .select("id, amount, type, status, reference, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(80);
+    return rows ?? [];
+  });

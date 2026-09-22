@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Self-hosting: pin the Vercel target only when building for an external
+  // deploy (DEPLOY_TARGET=vercel). Lovable's own build stays on its default.
+  ...(process.env.DEPLOY_TARGET === "vercel" ? { nitro: { preset: "vercel" } } : {}),
 });
