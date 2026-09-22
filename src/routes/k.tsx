@@ -231,7 +231,7 @@ function Catalog() {
           <input
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="سعر ثابت بالجنيه /1000 (اختياري)"
+            placeholder="سعر ثابت بالدولار /1000 (اختياري)"
             inputMode="decimal"
             className="h-12 rounded-xl px-4 bg-white/5 border border-white/10 outline-none"
           />
@@ -263,7 +263,7 @@ function Catalog() {
                 #{i.provider_service_id} ·{" "}
                 {PLATFORMS.find((p) => p.key === i.platform)?.label ?? i.platform} ·{" "}
                 {CATEGORIES.find((c) => c.key === i.category)?.label ?? i.category}
-                {i.price_override ? ` · سعر ثابت ${Number(i.price_override)} ج.م` : ""}
+                {i.price_override ? ` · سعر ثابت ${Number(i.price_override)}$` : ""}
               </div>
             </div>
             <button
