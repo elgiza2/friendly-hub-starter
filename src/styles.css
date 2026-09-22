@@ -9,7 +9,7 @@
 
 @theme inline {
   --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "Cairo", system-ui, sans-serif;
-  --font-display: "Playfair Display", "Instrument Serif", Georgia, serif;
+  --font-display: "Instrument Serif", "Playfair Display", Georgia, serif;
   --font-garamond: "ITC Garamond Std Narrow", "Playfair Display", Georgia, serif;
 
   --radius-sm: 10px;
