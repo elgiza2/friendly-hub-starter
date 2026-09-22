@@ -282,6 +282,14 @@ export function curate(
     picked.push(...list.slice(0, perBucket));
   }
 
+  // Drop duplicate display names, keeping the cheapest of each.
+  const seen = new Map<string, CuratedService>();
+  for (const s of picked.sort((a, b) => a.rateNum - b.rateNum)) {
+    if (!seen.has(s.name)) seen.set(s.name, s);
+  }
+  picked.length = 0;
+  picked.push(...seen.values());
+
   // Sort: bucket rank desc, then price asc
   picked.sort((a, b) => {
     const rb = bucketRank(b.attrs) - bucketRank(a.attrs);
@@ -290,4 +298,112 @@ export function curate(
   });
 
   return picked.slice(0, total);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Strict classification: only well-understood services are shown.
+// ─────────────────────────────────────────────────────────────
+
+export type StrictPlatform =
+  | "instagram"
+  | "tiktok"
+  | "facebook"
+  | "youtube"
+  | "telegram"
+  | "twitter";
+
+const STRICT_PLATFORM: [StrictPlatform, RegExp][] = [
+  ["instagram", /\binstagram\b|\binsta\b|\bigtv\b/i],
+  ["tiktok", /\btik\s?tok\b|\btiktok\b/i],
+  ["facebook", /\bfacebook\b|\bfb\b/i],
+  ["youtube", /\byoutube\b|\byt\b|\bshorts\b/i],
+  ["telegram", /\btelegram\b/i],
+  ["twitter", /\btwitter\b|\bx\s*\(twitter\)|\btweet\b|\bretweet\b/i],
+];
+
+/** Services we never want to sell / can't classify safely. */
+const BLOCKED = /\btraffic\b|\bseo\b|\bbacklink|\bvote|\breview|\bpanel\b|\bmining\b|\bcrypto|\bapp\s*install|\bdownload|\bsignup|\bsurvey|\bsoftware|\bscript\b|\bgoogle\b|\bspotify\b|\bsoundcloud\b|\btwitch\b|\bdiscord\b|\bsnapchat\b|\blinkedin\b|\bthreads\b|\bwhatsapp\b|\bshopee|\btrustpilot|\bpinterest\b|\breddit\b|\bkick\b|\bnft\b|\bemail\b|\bsms\b|\bmixcloud|\bdeezer|\baudiomack|\btumblr|\bquora|\bvk\b|\bimo\b|\blikee\b|\bkwai\b|\bbigo\b|\bclubhouse|\brumble\b|\bdailymotion|\bbinance|\bwattpad|\btidal\b|\bnapster|\banghami|\bshazam|\bapple\s*music/i;
+
+const STRICT_CATEGORY: [CategoryKey, RegExp][] = [
+  ["comments", /\bcomments?\b|\breplies\b/i],
+  ["reposts", /\breposts?\b|\bretweets?\b|\bshares?\s*\/\s*reposts?\b/i],
+  ["shares", /\bshares?\b/i],
+  ["followers", /\bfollowers?\b|\bsubscribers?\b|\bmembers?\b/i],
+  ["likes", /\blikes?\b|\breactions?\b|\bfavorites?\b/i],
+  ["views", /\bviews?\b|\bplays?\b|\bstory\s*views?\b|\bwatch\s*time\b|\blive\s*stream/i],
+];
+
+export interface Classified {
+  platform: StrictPlatform;
+  cat: CategoryKey;
+}
+
+/**
+ * Decide which platform + category a provider service really belongs to.
+ * Returns null when the service is ambiguous, off-topic or unsupported —
+ * those never reach the storefront.
+ */
+export function classify(rawName: string, rawCategory = ""): Classified | null {
+  const text = `${rawName} ${rawCategory}`;
+  if (BLOCKED.test(text)) return null;
+
+  // The service NAME decides the platform; the category is only a fallback.
+  let platform: StrictPlatform | null = null;
+  for (const [key, re] of STRICT_PLATFORM) if (re.test(rawName)) { platform = key; break; }
+  if (!platform) for (const [key, re] of STRICT_PLATFORM) if (re.test(rawCategory)) { platform = key; break; }
+  if (!platform) return null;
+
+  // A name naming two platforms is ambiguous — skip it.
+  const hits = STRICT_PLATFORM.filter(([, re]) => re.test(rawName)).length;
+  if (hits > 1) return null;
+
+  let cat: CategoryKey | null = null;
+  for (const [key, re] of STRICT_CATEGORY) if (re.test(rawName)) { cat = key; break; }
+  if (!cat) return null;
+
+  return { platform, cat };
+}
+
+export const CATEGORY_LABEL: Record<CategoryKey, string> = {
+  followers: "متابعين",
+  likes: "لايكات",
+  comments: "كومنتات",
+  views: "مشاهدات",
+  shares: "شير",
+  reposts: "ريبوست",
+  other: "خدمات تانية",
+};
+
+export const CATEGORY_ORDER: CategoryKey[] = [
+  "followers",
+  "likes",
+  "views",
+  "comments",
+  "shares",
+  "reposts",
+];
+
+/** Clean Arabic title built only from what we verified about the service. */
+export function titleFor(c: Classified, rawName: string): string {
+  const platLabel: Record<StrictPlatform, string> = {
+    instagram: "انستجرام",
+    tiktok: "تيك توك",
+    facebook: "فيسبوك",
+    youtube: "يوتيوب",
+    telegram: "تليجرام",
+    twitter: "تويتر",
+  };
+  const noun = c.cat === "followers" && c.platform === "youtube" ? "مشتركين" : CATEGORY_LABEL[c.cat];
+  const a = attrsOf(rawName);
+  const tags: string[] = [];
+  if (a.arab) tags.push("عرب");
+  if (a.real) tags.push("حسابات حقيقية");
+  if (a.stable) tags.push("ثابت");
+  const refillDays = /refill[^0-9a-z]{0,12}(\d{1,4})\s*days?/i.exec(rawName);
+  if (refillDays) tags.push(`ضمان ${refillDays[1]} يوم`);
+  else if (a.refill) tags.push("مع ضمان");
+  const speed = /speed[^0-9]{0,14}(\d+(?:\.\d+)?\s*[kmKM]?)/i.exec(rawName);
+  if (speed) tags.push(`سرعة ${speed[1].replace(/\s+/g, "").toUpperCase()}/يوم`);
+  const head = `${noun} ${platLabel[c.platform]}`;
+  return tags.length ? `${head} · ${tags.slice(0, 3).join(" · ")}` : head;
 }

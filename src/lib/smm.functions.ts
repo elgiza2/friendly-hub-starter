@@ -4,6 +4,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+/** Provider titles come HTML-escaped (&amp;, &#39;, ...). */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
@@ -68,20 +81,23 @@ export const syncServices = createServerFn({ method: "POST" }).handler(async () 
   const { fetchServices } = await import("./smm.server");
   const db = await admin();
   try {
+    const startedAt = new Date().toISOString();
     const services = await fetchServices();
-    const rows = services.map((s) => ({
-      service_id: Number(s.service),
-      name: s.name,
-      category: s.category ?? "",
-      type: s.type ?? "",
-      rate: Number(s.rate) || 0,
-      min_quantity: Number(s.min) || 1,
-      max_quantity: Number(s.max) || 1000,
-      refill: Boolean(s.refill),
-      cancel: Boolean(s.cancel),
-      is_active: true,
-      synced_at: new Date().toISOString(),
-    }));
+    const rows = services
+      .map((s) => ({
+        service_id: Number(s.service),
+        name: decodeEntities(s.name),
+        category: decodeEntities(s.category ?? ""),
+        type: s.type ?? "",
+        rate: Number(s.rate) || 0,
+        min_quantity: Number(s.min) || 1,
+        max_quantity: Number(s.max) || 1000,
+        refill: Boolean(s.refill),
+        cancel: Boolean(s.cancel),
+        is_active: true,
+        synced_at: startedAt,
+      }))
+      .filter((r) => Number.isFinite(r.service_id) && r.rate > 0);
 
     for (let i = 0; i < rows.length; i += 500) {
       const { error } = await db
@@ -89,6 +105,9 @@ export const syncServices = createServerFn({ method: "POST" }).handler(async () 
         .upsert(rows.slice(i, i + 500), { onConflict: "service_id" });
       if (error) throw new Error(error.message);
     }
+    // Anything the provider no longer offers stops showing up.
+    await db.from("sms_services").update({ is_active: false }).lt("synced_at", startedAt);
+
     return { ok: true as const, count: rows.length };
   } catch (err) {
     return { ok: false as const, error: (err as Error).message, count: 0 };
@@ -135,8 +154,8 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
       const services = await fetchServices();
       const rows = services.map((s) => ({
         service_id: Number(s.service),
-        name: s.name,
-        category: s.category ?? "",
+        name: decodeEntities(s.name),
+        category: decodeEntities(s.category ?? ""),
         type: s.type ?? "",
         rate: Number(s.rate) || 0,
         min_quantity: Number(s.min) || 1,
@@ -152,30 +171,37 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
       data = (await read()).data;
     }
 
-    const { cleanServiceName, cleanCategoryName, PROFIT_MULTIPLIER } = await import(
-      "./service-taxonomy"
-    );
+    const { classify, titleFor, PROFIT_MULTIPLIER } = await import("./service-taxonomy");
 
     const services = (data ?? [])
-      .map((s) => {
-        const category = s.category ?? "";
+      .flatMap((s) => {
+        const rawName = s.name ?? "";
+        const rawCategory = s.category ?? "";
+        const c = classify(rawName, rawCategory);
+        if (!c) return [];
+
+        const min = Number(s.min_quantity) || 1;
+        const max = Number(s.max_quantity) || 0;
+        if (max < min || min < 1) return [];
+
         // Provider cost per 1000 (USD) + 50% profit margin.
         const sellRate = Number(s.rate) * PROFIT_MULTIPLIER;
-        return {
+        if (!Number.isFinite(sellRate) || sellRate <= 0 || sellRate > 200) return [];
+
+        return [{
           service: s.service_id,
-          name: cleanServiceName(s.name ?? "", category),
+          name: titleFor(c, rawName),
+          rawName,
           type: s.type ?? "",
-          category: cleanCategoryName(category),
-          rawCategory: category,
+          platform: c.platform,
+          cat: c.cat,
+          category: c.cat,
           rate: sellRate.toFixed(6),
-          min: String(s.min_quantity),
-          max: String(s.max_quantity),
-        };
+          min: String(min),
+          max: String(max),
+        }];
       })
-      .sort(
-        (a, b) =>
-          a.category.localeCompare(b.category, "ar-EG") || Number(a.rate) - Number(b.rate),
-      );
+      .sort((a, b) => Number(a.rate) - Number(b.rate));
 
     return { ok: true as const, services };
   } catch (err) {

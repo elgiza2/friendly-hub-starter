@@ -6,8 +6,8 @@ import { Heart, MessageCircle, Users, Repeat2, Share2, Eye, Sparkles, ChevronLef
 import { getMe, listServices } from "@/lib/smm.functions";
 import { getUsdEgpRate } from "@/lib/fx.functions";
 import { getGuestToken } from "@/lib/guest-session";
-import { PLATFORMS, detectPlatform, type PlatformKey } from "@/lib/platform-icons";
-import { categoryOf, curate, displayProviderCategory, displayServiceName, type CategoryKey } from "@/lib/service-taxonomy";
+import { PLATFORMS, type PlatformKey } from "@/lib/platform-icons";
+import { CATEGORY_LABEL, CATEGORY_ORDER, curate, type CategoryKey } from "@/lib/service-taxonomy";
 
 export const Route = createFileRoute("/dashboard/")({
   component: HomePage,
@@ -52,70 +52,58 @@ function HomePage() {
   const [platform, setPlatform] = useState<PlatformKey | null>(null);
   const [category, setCategory] = useState<string | null>(null);
 
-  // Group all services by platform
+  // Group all services by the platform we verified on the server
   const byPlatform = useMemo(() => {
     const items = services?.services ?? [];
     const map = new Map<PlatformKey, typeof items>();
     for (const s of items) {
-      const p = detectPlatform(`${s.category} ${s.name}`);
-      if (!p) continue;
+      const p = s.platform as PlatformKey;
       if (!map.has(p)) map.set(p, []);
       map.get(p)!.push(s);
     }
     return map;
   }, [services]);
 
-  // For the selected platform, split by category
+  // For the selected platform, split by our own category keys
   const byCategory = useMemo(() => {
     const platformItems = platform ? byPlatform.get(platform) ?? [] : [];
     const map = new Map<string, typeof platformItems>();
     for (const s of platformItems) {
-      const c = s.category || "خدمات تانية";
-      if (!map.has(c)) map.set(c, []);
-      map.get(c)!.push(s);
+      if (!map.has(s.cat)) map.set(s.cat, []);
+      map.get(s.cat)!.push(s);
     }
     return map;
   }, [platform, byPlatform]);
 
   const dynamicCategories = useMemo(() => {
-    const order: Record<CategoryKey, number> = {
-      followers: 1,
-      likes: 2,
-      views: 3,
-      comments: 4,
-      shares: 5,
-      reposts: 6,
-      other: 7,
-    };
-
-    return Array.from(byCategory.entries())
-      .map(([raw, list]) => {
-        const kind = categoryOf(raw);
-        const prices = list.map((s) => Number(s.rate)).filter(Number.isFinite);
-        return {
-          raw,
-          kind,
-          label: displayProviderCategory(raw),
-          cheapestRate: prices.length ? Math.min(...prices) : Number.POSITIVE_INFINITY,
-        };
-      })
-      .sort((a, b) => {
-        const byKind = order[a.kind] - order[b.kind];
-        if (byKind !== 0) return byKind;
-        const byPrice = a.cheapestRate - b.cheapestRate;
-        if (Number.isFinite(byPrice) && byPrice !== 0) return byPrice;
-        return a.label.localeCompare(b.label, "ar-EG");
-      });
-  }, [byCategory]);
+    return CATEGORY_ORDER.filter((key) => (byCategory.get(key)?.length ?? 0) > 0).map((key) => {
+      const list = byCategory.get(key)!;
+      const label =
+        key === "followers" && platform === "youtube" ? "مشتركين" : CATEGORY_LABEL[key];
+      return {
+        raw: key as string,
+        kind: key,
+        label,
+        cheapestRate: Math.min(...list.map((s) => Number(s.rate))),
+      };
+    });
+  }, [byCategory, platform]);
 
   const curated = useMemo(() => {
     if (!platform || !category) return [];
-    return curate(byCategory.get(category) ?? [], categoryOf(category));
+    return curate(byCategory.get(category) ?? [], category as CategoryKey);
   }, [platform, category, byCategory]);
 
   const currentPlatform = platform ? PLATFORMS.find((p) => p.key === platform)! : null;
   const currentCategory = category
-    ? { raw: category, label: displayProviderCategory(category), kind: categoryOf(category) }
+    ? {
+        raw: category,
+        label:
+          category === "followers" && platform === "youtube"
+            ? "مشتركين"
+            : CATEGORY_LABEL[category as CategoryKey],
+        kind: category as CategoryKey,
+      }
     : null;
 
   return (
@@ -241,7 +229,7 @@ function HomePage() {
               <div className="space-y-2.5">
                 {curated.map((s) => {
                   const egp = s.rateNum * fxRate;
-                  const serviceTitle = displayServiceName(s.name, s.category);
+                  const serviceTitle = s.name;
                   return (
                     <button
                       key={s.service}
