@@ -391,3 +391,43 @@ export const listMyTransactions = createServerFn({ method: "POST" })
       .limit(80);
     return rows ?? [];
   });
+
+/** Lightweight per-service SEO data (title + description) for the order page. */
+export const getServiceSeo = createServerFn({ method: "GET" })
+  .inputValidator((d: { serviceId: number }) => ({ serviceId: Number(d.serviceId) }))
+  .handler(async ({ data }) => {
+    try {
+      const db = await admin();
+      const { classify, titleFor, PROFIT_MULTIPLIER, CATEGORY_LABEL } = await import("./service-taxonomy");
+      const { data: row } = await db
+        .from("sms_services")
+        .select("service_id, name, category, rate, min_quantity, max_quantity")
+        .eq("service_id", data.serviceId)
+        .maybeSingle();
+      if (!row) return { ok: false as const, name: null, price: 0, min: 0, max: 0, cat: null };
+
+      const { data: pick } = await db
+        .from("sms_catalog")
+        .select("title, category, price_override")
+        .eq("provider_service_id", data.serviceId)
+        .maybeSingle();
+
+      const fx = await (await import("./fx.server")).getRate();
+      const c = classify(row.name ?? "", row.category ?? "");
+      const name = pick?.title ?? (c ? titleFor(c, row.name ?? "") : (row.name ?? ""));
+      const price = pick?.price_override
+        ? Number(pick.price_override)
+        : Number(row.rate) * PROFIT_MULTIPLIER * fx;
+      const catKey = pick?.category ?? c?.cat ?? null;
+      return {
+        ok: true as const,
+        name,
+        price: Math.round(price * 100) / 100,
+        min: Number(row.min_quantity) || 1,
+        max: Number(row.max_quantity) || 0,
+        cat: catKey ? (CATEGORY_LABEL[catKey as keyof typeof CATEGORY_LABEL] ?? catKey) : null,
+      };
+    } catch {
+      return { ok: false as const, name: null, price: 0, min: 0, max: 0, cat: null };
+    }
+  });
