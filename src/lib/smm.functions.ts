@@ -171,30 +171,37 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
       data = (await read()).data;
     }
 
-    const { cleanServiceName, cleanCategoryName, PROFIT_MULTIPLIER } = await import(
-      "./service-taxonomy"
-    );
+    const { classify, titleFor, PROFIT_MULTIPLIER } = await import("./service-taxonomy");
 
     const services = (data ?? [])
-      .map((s) => {
-        const category = s.category ?? "";
+      .flatMap((s) => {
+        const rawName = s.name ?? "";
+        const rawCategory = s.category ?? "";
+        const c = classify(rawName, rawCategory);
+        if (!c) return [];
+
+        const min = Number(s.min_quantity) || 1;
+        const max = Number(s.max_quantity) || 0;
+        if (max < min || min < 1) return [];
+
         // Provider cost per 1000 (USD) + 50% profit margin.
         const sellRate = Number(s.rate) * PROFIT_MULTIPLIER;
-        return {
+        if (!Number.isFinite(sellRate) || sellRate <= 0 || sellRate > 200) return [];
+
+        return [{
           service: s.service_id,
-          name: cleanServiceName(s.name ?? "", category),
+          name: titleFor(c, rawName),
+          rawName,
           type: s.type ?? "",
-          category: cleanCategoryName(category),
-          rawCategory: category,
+          platform: c.platform,
+          cat: c.cat,
+          category: c.cat,
           rate: sellRate.toFixed(6),
-          min: String(s.min_quantity),
-          max: String(s.max_quantity),
-        };
+          min: String(min),
+          max: String(max),
+        }];
       })
-      .sort(
-        (a, b) =>
-          a.category.localeCompare(b.category, "ar-EG") || Number(a.rate) - Number(b.rate),
-      );
+      .sort((a, b) => Number(a.rate) - Number(b.rate));
 
     return { ok: true as const, services };
   } catch (err) {
