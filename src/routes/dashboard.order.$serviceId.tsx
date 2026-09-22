@@ -3,14 +3,61 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { ChevronRight, Info, AlertCircle, Link as LinkIcon, Hash, Wallet } from "lucide-react";
-import { listServices, placeOrder, getMe } from "@/lib/smm.functions";
+import { listServices, placeOrder, getMe, getServiceSeo } from "@/lib/smm.functions";
 import { getUsdEgpRate } from "@/lib/fx.functions";
 import { getGuestToken } from "@/lib/guest-session";
 import { attrsOf, categoryOf } from "@/lib/service-taxonomy";
 import { detectPlatform, PLATFORMS } from "@/lib/platform-icons";
 import { getInstructions } from "@/lib/service-instructions";
 
+const SITE = "https://megsy.online";
+
 export const Route = createFileRoute("/dashboard/order/$serviceId")({
+  loader: async ({ params }) => {
+    const seo = await getServiceSeo({ data: { serviceId: Number(params.serviceId) } });
+    return { seo };
+  },
+  head: ({ params, loaderData }) => {
+    const seo = loaderData?.seo;
+    const title = seo?.name ? `${seo.name} | ميجسي` : "طلب خدمة | ميجسي";
+    const price = seo?.price ? `${seo.price} ج.م لكل 1000` : "أسعار مصرية";
+    const description = seo?.name
+      ? `اطلب ${seo.name} بسعر ${price} · التنفيذ فوري والدفع بالجنيه المصري من ميجسي.`
+      : "اطلب خدمات زيادة المتابعين والمشاهدات بأسعار مصرية وتنفيذ فوري.";
+    const url = `${SITE}/dashboard/order/${params.serviceId}`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "product" },
+        { property: "og:url", content: url },
+        { property: "og:image", content: `${SITE}/og-image.jpg` },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: `${SITE}/og-image.jpg` },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: seo?.name
+        ? [{
+            type: "application/ld+json",
+            children: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: seo.name,
+              description,
+              offers: {
+                "@type": "Offer",
+                price: seo.price,
+                priceCurrency: "EGP",
+                availability: "https://schema.org/InStock",
+                url,
+              },
+            }),
+          }]
+        : [],
+    };
+  },
   component: OrderPage,
 });
 
