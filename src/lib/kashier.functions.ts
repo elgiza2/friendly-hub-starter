@@ -26,8 +26,8 @@ export const createDepositIntent = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data }) => {
-    const merchantId = process.env.KASHIER_MERCHANT_ID;
-    const apiKey = process.env.KASHIER_API_KEY;
+    const merchantId = process.env.KASHIER_MERCHANT_ID?.trim();
+    const apiKey = process.env.KASHIER_API_KEY?.trim();
     const mode = (process.env.KASHIER_MODE ?? "test").toLowerCase() === "live" ? "live" : "test";
     if (!merchantId || !apiKey) throw new Error("Kashier keys are not configured");
 
@@ -76,6 +76,7 @@ export const createDepositIntent = createServerFn({ method: "POST" })
       failureRedirect: redirect,
       redirectMethod: "get",
       display: "ar",
+      serverWebhook: `${data.redirectOrigin}/api/public/kashier-webhook`,
       interactionSource: "Ecommerce",
       allowedMethods: "card,wallet",
     });
