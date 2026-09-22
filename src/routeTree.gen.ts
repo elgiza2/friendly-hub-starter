@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as KRouteImport } from './routes/k'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
@@ -28,6 +29,11 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KRoute = KRouteImport.update({
+  id: '/k',
+  path: '/k',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -75,6 +81,7 @@ const DashboardOrderServiceIdRoute = DashboardOrderServiceIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/k': typeof KRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/orders': typeof DashboardOrdersRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/k': typeof KRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/orders': typeof DashboardOrdersRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/k': typeof KRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/orders': typeof DashboardOrdersRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/k'
     | '/sitemap.xml'
     | '/dashboard/account'
     | '/dashboard/orders'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/k'
     | '/sitemap.xml'
     | '/dashboard/account'
     | '/dashboard/orders'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/k'
     | '/sitemap.xml'
     | '/dashboard/account'
     | '/dashboard/orders'
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  KRoute: typeof KRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPublicKashierWebhookRoute: typeof ApiPublicKashierWebhookRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/k': {
+      id: '/k'
+      path: '/k'
+      fullPath: '/k'
+      preLoaderRoute: typeof KRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -252,6 +272,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  KRoute: KRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPublicKashierWebhookRoute: ApiPublicKashierWebhookRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,

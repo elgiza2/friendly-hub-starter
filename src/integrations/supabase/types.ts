@@ -597,6 +597,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_catalog: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          platform: string
+          price_override: number | null
+          provider_service_id: number
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          platform: string
+          price_override?: number | null
+          provider_service_id: number
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          platform?: string
+          price_override?: number | null
+          provider_service_id?: number
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sms_orders: {
         Row: {
           category: string | null
