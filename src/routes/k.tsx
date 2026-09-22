@@ -193,7 +193,7 @@ function Catalog() {
           <div className="text-xs opacity-70 leading-relaxed">
             {found.name}
             <br />
-            تكلفة المزوّد: {found.rate.toFixed(4)}$ / 1000 (≈ {(found.rate * 1.5 * 48.5).toFixed(0)} ج.م بهامش 50%) · الحد {found.min_quantity} - {found.max_quantity}
+            التكلفة: {(found.rate * 48.5).toFixed(0)} ج.م / 1000 · السعر بهامش 50%: {(found.rate * 1.5 * 48.5).toFixed(0)} ج.م · الحد {found.min_quantity} - {found.max_quantity}
           </div>
         )}
 
