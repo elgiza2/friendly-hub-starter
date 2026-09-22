@@ -5,6 +5,13 @@ import { getMe } from "@/lib/smm.functions";
 import { clearGuestToken, getGuestToken } from "@/lib/guest-session";
 
 export const Route = createFileRoute("/dashboard/account")({
+  head: () => ({
+    meta: [
+      { title: "حسابي | ميجسي" },
+      { name: "description", content: "بيانات حسابك وإعداداتك." },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: AccountPage,
 });
 

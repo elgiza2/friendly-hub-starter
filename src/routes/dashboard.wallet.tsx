@@ -8,6 +8,13 @@ import { getGuestToken } from "@/lib/guest-session";
 import { z } from "zod";
 
 export const Route = createFileRoute("/dashboard/wallet")({
+  head: () => ({
+    meta: [
+      { title: "المحفظة | ميجسي" },
+      { name: "description", content: "اشحن رصيدك بالجنيه المصري وتابع معاملاتك." },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   validateSearch: (s) => z.object({ deposit: z.string().optional() }).parse(s),
   component: WalletPage,
 });
