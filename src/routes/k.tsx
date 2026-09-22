@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   adminDeleteItem,
+  adminUnlock,
   adminListCatalog,
   adminLock,
   adminLookupService,
@@ -47,11 +48,6 @@ type CategoryKey = (typeof CATEGORIES)[number]["key"];
 function AdminPage() {
   const qc = useQueryClient();
   const status = useServerFn(adminStatus);
-  const unlockFn = useServerFn(
-    // lazy import keeps the bundle identical; direct reference is fine
-    (await0 = null) => Promise.resolve(await0) as never,
-  );
-  void unlockFn;
 
   const { data: gate, isLoading } = useQuery({
     queryKey: ["admin-status"],
@@ -72,7 +68,6 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Unlock({ onDone }: { onDone: () => void }) {
-  const { adminUnlock } = require0();
   const unlock = useServerFn(adminUnlock);
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(false);
@@ -107,14 +102,6 @@ function Unlock({ onDone }: { onDone: () => void }) {
     </Shell>
   );
 }
-
-// Keeps the unlock import out of the module top-level dependency cycle.
-function require0() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return { adminUnlock: adminUnlockRef };
-}
-
-import { adminUnlock as adminUnlockRef } from "@/lib/admin.functions";
 
 function Catalog() {
   const qc = useQueryClient();
