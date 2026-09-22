@@ -193,7 +193,7 @@ function Catalog() {
           <div className="text-xs opacity-70 leading-relaxed">
             {found.name}
             <br />
-            تكلفة المزوّد: {found.rate.toFixed(4)}$ / 1000 · الحد {found.min_quantity} - {found.max_quantity}
+            التكلفة: {(found.rate * 48.5).toFixed(0)} ج.م / 1000 · السعر بهامش 50%: {(found.rate * 1.5 * 48.5).toFixed(0)} ج.م · الحد {found.min_quantity} - {found.max_quantity}
           </div>
         )}
 
@@ -233,7 +233,7 @@ function Catalog() {
           <input
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="سعر ثابت بالدولار /1000 (اختياري)"
+            placeholder="سعر ثابت بالجنيه /1000 (اختياري)"
             inputMode="decimal"
             className="h-12 rounded-xl px-4 bg-white/5 border border-white/10 outline-none"
           />
@@ -265,7 +265,7 @@ function Catalog() {
                 #{i.provider_service_id} ·{" "}
                 {PLATFORMS.find((p) => p.key === i.platform)?.label ?? i.platform} ·{" "}
                 {CATEGORIES.find((c) => c.key === i.category)?.label ?? i.category}
-                {i.price_override ? ` · سعر ثابت ${Number(i.price_override)}$` : ""}
+                {i.price_override ? ` · سعر ثابت ${Number(i.price_override)} ج.م` : ""}
               </div>
             </div>
             <button

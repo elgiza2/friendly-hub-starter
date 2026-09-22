@@ -181,12 +181,15 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
       .order("sort_order", { ascending: true });
 
     if (picks && picks.length > 0) {
+      // Admin enters overrides in EGP; the app prices in USD and converts for display.
+      const hasOverride = picks.some((p) => p.price_override);
+      const fx = hasOverride ? await (await import("./fx.server")).getRate() : 1;
       const byId = new Map((data ?? []).map((s) => [s.service_id, s]));
       const curatedList = picks.flatMap((p) => {
         const s = byId.get(p.provider_service_id);
         if (!s) return [];
         const sellRate = p.price_override
-          ? Number(p.price_override)
+          ? Number(p.price_override) / fx
           : Number(s.rate) * PROFIT_MULTIPLIER;
         if (!Number.isFinite(sellRate) || sellRate <= 0) return [];
         return [{
