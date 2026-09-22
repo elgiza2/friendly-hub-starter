@@ -70,21 +70,9 @@ function LoginPage() {
         dir="rtl"
       >
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <span
-            dir="ltr"
-            className="text-[11px] uppercase"
-            style={{
-              letterSpacing: "0.42em",
-              color: "rgba(255,255,255,0.45)",
-              animation: "zeReveal 1s cubic-bezier(0.16,1,0.3,1) 0.2s both",
-            }}
-          >
-            Megsy
-          </span>
-
           <h1
             dir="ltr"
-            className="mt-6 text-foreground"
+            className="text-foreground"
             style={{
               fontFamily: "var(--font-display)",
               fontWeight: 400,
