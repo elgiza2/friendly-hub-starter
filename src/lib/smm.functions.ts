@@ -99,15 +99,36 @@ export const syncServices = createServerFn({ method: "POST" }).handler(async () 
 export const listServices = createServerFn({ method: "GET" }).handler(async () => {
   const db = await admin();
   try {
-    const read = async () =>
-      db
-        .from("sms_services")
-        .select("service_id, name, type, category, rate, min_quantity, max_quantity")
-        .eq("is_active", true)
-        .order("category", { ascending: true })
-        .limit(5000);
+    // Read the WHOLE catalogue in pages (PostgREST caps a single request).
+    const read = async () => {
+      const all: {
+        service_id: number;
+        name: string;
+        type: string | null;
+        category: string | null;
+        rate: number;
+        min_quantity: number;
+        max_quantity: number;
+      }[] = [];
+      const page = 1000;
+      for (let from = 0; from < 40_000; from += page) {
+        const { data: chunk, error } = await db
+          .from("sms_services")
+          .select("service_id, name, type, category, rate, min_quantity, max_quantity")
+          .eq("is_active", true)
+          .gt("rate", 0)
+          .order("service_id", { ascending: true })
+          .range(from, from + page - 1);
+        if (error) throw new Error(error.message);
+        if (!chunk || chunk.length === 0) break;
+        all.push(...chunk);
+        if (chunk.length < page) break;
+      }
+      return { data: all };
+    };
 
     let { data } = await read();
+
 
     if (!data || data.length === 0) {
       const { fetchServices } = await import("./smm.server");
@@ -131,18 +152,32 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
       data = (await read()).data;
     }
 
-    return {
-      ok: true as const,
-      services: (data ?? []).map((s) => ({
-        service: s.service_id,
-        name: s.name,
-        type: s.type,
-        category: s.category,
-        rate: String(s.rate),
-        min: String(s.min_quantity),
-        max: String(s.max_quantity),
-      })),
-    };
+    const { cleanServiceName, cleanCategoryName, PROFIT_MULTIPLIER } = await import(
+      "./service-taxonomy"
+    );
+
+    const services = (data ?? [])
+      .map((s) => {
+        const category = s.category ?? "";
+        // Provider cost per 1000 (USD) + 50% profit margin.
+        const sellRate = Number(s.rate) * PROFIT_MULTIPLIER;
+        return {
+          service: s.service_id,
+          name: cleanServiceName(s.name ?? "", category),
+          type: s.type ?? "",
+          category: cleanCategoryName(category),
+          rawCategory: category,
+          rate: sellRate.toFixed(6),
+          min: String(s.min_quantity),
+          max: String(s.max_quantity),
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.category.localeCompare(b.category, "ar-EG") || Number(a.rate) - Number(b.rate),
+      );
+
+    return { ok: true as const, services };
   } catch (err) {
     return { ok: false as const, error: (err as Error).message, services: [] };
   }
