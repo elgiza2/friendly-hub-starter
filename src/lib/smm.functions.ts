@@ -173,6 +173,39 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
 
     const { classify, titleFor, PROFIT_MULTIPLIER } = await import("./service-taxonomy");
 
+    // Hand-picked catalogue (managed from /k) wins whenever it has entries.
+    const { data: picks } = await db
+      .from("sms_catalog")
+      .select("provider_service_id, platform, category, title, price_override, sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+
+    if (picks && picks.length > 0) {
+      const byId = new Map((data ?? []).map((s) => [s.service_id, s]));
+      const curatedList = picks.flatMap((p) => {
+        const s = byId.get(p.provider_service_id);
+        if (!s) return [];
+        const sellRate = p.price_override
+          ? Number(p.price_override)
+          : Number(s.rate) * PROFIT_MULTIPLIER;
+        if (!Number.isFinite(sellRate) || sellRate <= 0) return [];
+        return [{
+          service: s.service_id,
+          name: p.title,
+          rawName: s.name ?? "",
+          type: s.type ?? "",
+          platform: p.platform,
+          cat: p.category,
+          category: p.category,
+          rate: sellRate.toFixed(6),
+          min: String(s.min_quantity),
+          max: String(s.max_quantity),
+          fixedPrice: Boolean(p.price_override),
+        }];
+      });
+      return { ok: true as const, services: curatedList };
+    }
+
     const services = (data ?? [])
       .flatMap((s) => {
         const rawName = s.name ?? "";
@@ -199,6 +232,7 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
           rate: sellRate.toFixed(6),
           min: String(min),
           max: String(max),
+          fixedPrice: false,
         }];
       })
       .sort((a, b) => Number(a.rate) - Number(b.rate));
