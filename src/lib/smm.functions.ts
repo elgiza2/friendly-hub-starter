@@ -81,6 +81,7 @@ export const syncServices = createServerFn({ method: "POST" }).handler(async () 
   const { fetchServices } = await import("./smm.server");
   const db = await admin();
   try {
+    const startedAt = new Date().toISOString();
     const services = await fetchServices();
     const rows = services
       .map((s) => ({
@@ -94,7 +95,7 @@ export const syncServices = createServerFn({ method: "POST" }).handler(async () 
         refill: Boolean(s.refill),
         cancel: Boolean(s.cancel),
         is_active: true,
-        synced_at: new Date().toISOString(),
+        synced_at: startedAt,
       }))
       .filter((r) => Number.isFinite(r.service_id) && r.rate > 0);
 
@@ -104,11 +105,8 @@ export const syncServices = createServerFn({ method: "POST" }).handler(async () 
         .upsert(rows.slice(i, i + 500), { onConflict: "service_id" });
       if (error) throw new Error(error.message);
     }
-    const ids = rows.map((r) => r.service_id);
-    await db
-      .from("sms_services")
-      .update({ is_active: false })
-      .not("service_id", "in", `(${ids.join(",")})`);
+    // Anything the provider no longer offers stops showing up.
+    await db.from("sms_services").update({ is_active: false }).lt("synced_at", startedAt);
 
     return { ok: true as const, count: rows.length };
   } catch (err) {
