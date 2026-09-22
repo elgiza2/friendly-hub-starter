@@ -6,7 +6,7 @@ import { ChevronRight, Info, AlertCircle, Link as LinkIcon, Hash, Wallet } from 
 import { listServices, placeOrder, getMe } from "@/lib/smm.functions";
 import { getUsdEgpRate } from "@/lib/fx.functions";
 import { getGuestToken } from "@/lib/guest-session";
-import { attrsOf, categoryOf, displayServiceName } from "@/lib/service-taxonomy";
+import { attrsOf, categoryOf } from "@/lib/service-taxonomy";
 import { detectPlatform, PLATFORMS } from "@/lib/platform-icons";
 import { getInstructions } from "@/lib/service-instructions";
 
@@ -107,7 +107,7 @@ function OrderPage() {
         data: {
           token,
           serviceId: service.service,
-          serviceName: displayServiceName(service.name, service.category),
+          serviceName: service.name,
           category: service.category,
           link: link.trim(),
           quantity,
@@ -123,7 +123,7 @@ function OrderPage() {
     }
   }
 
-  const label = displayServiceName(service.name, service.category);
+  const label = service.name;
 
   const instr = getInstructions(meta?.platform ?? null, meta?.cat ?? "other");
 
