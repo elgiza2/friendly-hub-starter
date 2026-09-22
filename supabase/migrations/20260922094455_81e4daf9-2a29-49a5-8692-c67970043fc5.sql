@@ -1,0 +1,1 @@
+ALTER TABLE public.sms_services ALTER COLUMN rate TYPE numeric(16,6);
