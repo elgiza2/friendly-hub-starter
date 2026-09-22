@@ -1,0 +1,2 @@
+-- One sms_users row per Supabase-auth identity (Google login link target)
+CREATE UNIQUE INDEX IF NOT EXISTS sms_users_auth_user_id_key ON public.sms_users (auth_user_id) WHERE auth_user_id IS NOT NULL;

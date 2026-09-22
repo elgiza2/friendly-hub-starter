@@ -10,33 +10,148 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
+import { Route as DashboardOrdersRouteImport } from './routes/dashboard.orders'
+import { Route as DashboardWalletRouteImport } from './routes/dashboard.wallet'
+import { Route as ApiPublicKashierWebhookRouteImport } from './routes/api/public/kashier-webhook'
+import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp-webhook'
+import { Route as DashboardOrderServiceIdRouteImport } from './routes/dashboard.order.$serviceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAccountRoute = DashboardAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOrdersRoute = DashboardOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWalletRoute = DashboardWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const ApiPublicKashierWebhookRoute = ApiPublicKashierWebhookRouteImport.update({
+  id: '/api/public/kashier-webhook',
+  path: '/api/public/kashier-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWhatsappWebhookRoute =
+  ApiPublicWhatsappWebhookRouteImport.update({
+    id: '/api/public/whatsapp-webhook',
+    path: '/api/public/whatsapp-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DashboardOrderServiceIdRoute = DashboardOrderServiceIdRouteImport.update({
+  id: '/order/$serviceId',
+  path: '/order/$serviceId',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/orders': typeof DashboardOrdersRoute
+  '/dashboard/wallet': typeof DashboardWalletRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/api/public/kashier-webhook': typeof ApiPublicKashierWebhookRoute
+  '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/dashboard/order/$serviceId': typeof DashboardOrderServiceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/orders': typeof DashboardOrdersRoute
+  '/dashboard/wallet': typeof DashboardWalletRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/api/public/kashier-webhook': typeof ApiPublicKashierWebhookRoute
+  '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/dashboard/order/$serviceId': typeof DashboardOrderServiceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/orders': typeof DashboardOrdersRoute
+  '/dashboard/wallet': typeof DashboardWalletRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/api/public/kashier-webhook': typeof ApiPublicKashierWebhookRoute
+  '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/dashboard/order/$serviceId': typeof DashboardOrderServiceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/sitemap.xml'
+    | '/dashboard/account'
+    | '/dashboard/orders'
+    | '/dashboard/wallet'
+    | '/dashboard/'
+    | '/api/public/kashier-webhook'
+    | '/api/public/whatsapp-webhook'
+    | '/dashboard/order/$serviceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/sitemap.xml'
+    | '/dashboard/account'
+    | '/dashboard/orders'
+    | '/dashboard/wallet'
+    | '/dashboard'
+    | '/api/public/kashier-webhook'
+    | '/api/public/whatsapp-webhook'
+    | '/dashboard/order/$serviceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/sitemap.xml'
+    | '/dashboard/account'
+    | '/dashboard/orders'
+    | '/dashboard/wallet'
+    | '/dashboard/'
+    | '/api/public/kashier-webhook'
+    | '/api/public/whatsapp-webhook'
+    | '/dashboard/order/$serviceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiPublicKashierWebhookRoute: typeof ApiPublicKashierWebhookRoute
+  ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +163,98 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/account': {
+      id: '/dashboard/account'
+      path: '/account'
+      fullPath: '/dashboard/account'
+      preLoaderRoute: typeof DashboardAccountRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/orders': {
+      id: '/dashboard/orders'
+      path: '/orders'
+      fullPath: '/dashboard/orders'
+      preLoaderRoute: typeof DashboardOrdersRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/wallet': {
+      id: '/dashboard/wallet'
+      path: '/wallet'
+      fullPath: '/dashboard/wallet'
+      preLoaderRoute: typeof DashboardWalletRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/api/public/kashier-webhook': {
+      id: '/api/public/kashier-webhook'
+      path: '/api/public/kashier-webhook'
+      fullPath: '/api/public/kashier-webhook'
+      preLoaderRoute: typeof ApiPublicKashierWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/whatsapp-webhook': {
+      id: '/api/public/whatsapp-webhook'
+      path: '/api/public/whatsapp-webhook'
+      fullPath: '/api/public/whatsapp-webhook'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/order/$serviceId': {
+      id: '/dashboard/order/$serviceId'
+      path: '/order/$serviceId'
+      fullPath: '/dashboard/order/$serviceId'
+      preLoaderRoute: typeof DashboardOrderServiceIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardAccountRoute: typeof DashboardAccountRoute
+  DashboardOrdersRoute: typeof DashboardOrdersRoute
+  DashboardWalletRoute: typeof DashboardWalletRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardOrderServiceIdRoute: typeof DashboardOrderServiceIdRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAccountRoute: DashboardAccountRoute,
+  DashboardOrdersRoute: DashboardOrdersRoute,
+  DashboardWalletRoute: DashboardWalletRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+  DashboardOrderServiceIdRoute: DashboardOrderServiceIdRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiPublicKashierWebhookRoute: ApiPublicKashierWebhookRoute,
+  ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
