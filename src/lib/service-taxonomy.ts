@@ -118,11 +118,88 @@ function polishExternalText(text: string): string {
 }
 
 export function displayProviderCategory(category: string): string {
-  return polishExternalText(category);
+  return cleanCategoryName(category);
+}
+
+/** Percentage added on top of the provider cost. */
+export const PROFIT_MULTIPLIER = 1.5;
+
+const PLATFORM_LABELS: [RegExp, string][] = [
+  [/instagram|\binsta\b|\big\b/i, "انستجرام"],
+  [/tik\s*tok/i, "تيك توك"],
+  [/facebook|\bfb\b/i, "فيسبوك"],
+  [/youtube|\byt\b/i, "يوتيوب"],
+  [/telegram/i, "تليجرام"],
+  [/twitter|\bx\.com\b|\btweet/i, "تويتر"],
+  [/snapchat/i, "سناب شات"],
+  [/spotify/i, "سبوتيفاي"],
+  [/soundcloud/i, "ساوند كلاود"],
+  [/twitch/i, "تويتش"],
+  [/linkedin/i, "لينكد إن"],
+  [/threads/i, "ثريدز"],
+  [/discord/i, "ديسكورد"],
+  [/whatsapp/i, "واتساب"],
+  [/website\s*traffic/i, "زيارات موقع"],
+];
+
+function platformLabelOf(text: string): string | null {
+  for (const [re, label] of PLATFORM_LABELS) if (re.test(text)) return label;
+  return null;
+}
+
+const NOUN: Record<CategoryKey, string> = {
+  followers: "متابعين",
+  likes: "لايكات",
+  comments: "كومنتات",
+  views: "مشاهدات",
+  shares: "شير",
+  reposts: "ريبوست",
+  other: "خدمة",
+};
+
+/** Short, clean Arabic category label. */
+export function cleanCategoryName(category: string): string {
+  const plat = platformLabelOf(category);
+  const noun = NOUN[categoryOf(category)];
+  return plat ? `${noun} ${plat}` : polishExternalText(category);
+}
+
+/**
+ * Build a short, clean Arabic service name out of the provider's noisy title.
+ * Example: "TikTok Followers | NEW | Cheapest | Speed: 20K/Day | No Refill | MAX 300K"
+ *        → "متابعين تيك توك · اقتصادي · سرعة 20K/يوم"
+ */
+export function cleanServiceName(rawName: string, rawCategory = ""): string {
+  const src = `${rawName} ${rawCategory}`;
+  const noun = NOUN[categoryOf(src)];
+  const plat = platformLabelOf(src);
+  const a = attrsOf(src);
+
+  const head = plat ? `${noun} ${plat}` : noun;
+  const tags: string[] = [];
+
+  if (a.arab) tags.push("عرب");
+  if (a.real) tags.push("حقيقي");
+  if (a.stable) tags.push("ثابت");
+
+  const refillDays = /refill[^0-9a-z]{0,12}(\d{1,4})\s*days?/i.exec(rawName);
+  if (refillDays) tags.push(`تعويض ${refillDays[1]} يوم`);
+  else if (a.refill) tags.push("تعويض");
+
+  if (a.fast) tags.push("سريع");
+  else if (a.cheap) tags.push("اقتصادي");
+
+  const speed = /speed[^0-9]{0,14}(\d+(?:\.\d+)?\s*[kmKM]?)(?:\s*-\s*\d+(?:\.\d+)?\s*[kmKM]?)?\s*\/?\s*day/i.exec(
+    rawName,
+  );
+  if (speed) tags.push(`سرعة ${speed[1].replace(/\s+/g, "").toUpperCase()}/يوم`);
+
+  const out = tags.length ? `${head} · ${tags.slice(0, 4).join(" · ")}` : head;
+  return out.trim() || polishExternalText(rawName);
 }
 
 export function displayServiceName(name: string, fallbackCategory = ""): string {
-  return polishExternalText(name || fallbackCategory);
+  return cleanServiceName(name || fallbackCategory, fallbackCategory);
 }
 
 export interface RawService {
