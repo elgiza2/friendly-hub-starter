@@ -10,6 +10,25 @@ import { PLATFORMS, type PlatformKey } from "@/lib/platform-icons";
 import { CATEGORY_LABEL, CATEGORY_ORDER, curate, type CategoryKey } from "@/lib/service-taxonomy";
 
 export const Route = createFileRoute("/dashboard/")({
+  head: () => {
+    const title = "خدمات زيادة المتابعين والمشاهدات بأسعار مصرية | ميجسي";
+    const description =
+      "متجر ميجسي لزيادة متابعين ولايكات ومشاهدات انستجرام وتيك توك ويوتيوب وفيسبوك وتويتر وتليجرام — دفع بالجنيه المصري وتنفيذ فوري.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: "https://megsy.online/dashboard" },
+        { property: "og:image", content: "https://megsy.online/og-image.jpg" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: "https://megsy.online/og-image.jpg" },
+      ],
+      links: [{ rel: "canonical", href: "https://megsy.online/dashboard" }],
+    };
+  },
   component: HomePage,
 });
 

@@ -5,6 +5,13 @@ import { listMyOrders, refreshOrder } from "@/lib/smm.functions";
 import { getGuestToken } from "@/lib/guest-session";
 
 export const Route = createFileRoute("/dashboard/orders")({
+  head: () => ({
+    meta: [
+      { title: "طلباتي | ميجسي" },
+      { name: "description", content: "تابع حالة طلباتك لحظة بلحظة." },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: OrdersPage,
 });
 
