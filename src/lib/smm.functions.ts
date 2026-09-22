@@ -152,18 +152,32 @@ export const listServices = createServerFn({ method: "GET" }).handler(async () =
       data = (await read()).data;
     }
 
-    return {
-      ok: true as const,
-      services: (data ?? []).map((s) => ({
-        service: s.service_id,
-        name: s.name,
-        type: s.type,
-        category: s.category,
-        rate: String(s.rate),
-        min: String(s.min_quantity),
-        max: String(s.max_quantity),
-      })),
-    };
+    const { cleanServiceName, cleanCategoryName, PROFIT_MULTIPLIER } = await import(
+      "./service-taxonomy"
+    );
+
+    const services = (data ?? [])
+      .map((s) => {
+        const category = s.category ?? "";
+        // Provider cost per 1000 (USD) + 50% profit margin.
+        const sellRate = Number(s.rate) * PROFIT_MULTIPLIER;
+        return {
+          service: s.service_id,
+          name: cleanServiceName(s.name ?? "", category),
+          type: s.type ?? "",
+          category: cleanCategoryName(category),
+          rawCategory: category,
+          rate: sellRate.toFixed(6),
+          min: String(s.min_quantity),
+          max: String(s.max_quantity),
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.category.localeCompare(b.category, "ar-EG") || Number(a.rate) - Number(b.rate),
+      );
+
+    return { ok: true as const, services };
   } catch (err) {
     return { ok: false as const, error: (err as Error).message, services: [] };
   }
